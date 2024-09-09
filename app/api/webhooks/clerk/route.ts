@@ -2,6 +2,8 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 
+import { db } from "@/lib/db";
+
 export async function POST(req: Request) {
   // You can find this in the Clerk Dashboard -> Webhooks -> choose the endpoint
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -25,6 +27,7 @@ export async function POST(req: Request) {
 
   // Get the body
   const payload = await req.json();
+  console.log(payload);
   const body = JSON.stringify(payload);
 
   // Create a new Svix instance with your secret.
@@ -46,12 +49,49 @@ export async function POST(req: Request) {
     });
   }
 
-  // Do something with the payload
-  // For this guide, you simply log the payload to the console
-  const { id } = evt.data;
   const eventType = evt.type;
-  console.log(`Webhook with and ID of ${id} and type of ${eventType}`);
-//   console.log("Webhook body:", body);
 
+  if (eventType === "user.created") {
+    const res = await db.user.create({
+      data: {
+        externalUserId: payload.data.id,
+        username: payload.data.username,
+        imageUrl: payload.data.image_url,
+      },
+    });
+    console.log(res);
+  }
+
+  if (eventType === "user.updated") {
+    const currentUser = await db.user.findUnique({
+      where: {
+        externalUserId: payload.data.id,
+      },
+    });
+
+    if (!currentUser) {
+      return new Response("User not found", { status: 400 });
+    }
+
+    await db.user.update({
+      where: {
+        externalUserId: payload.data.id,
+      },
+      data: {
+        username: payload.data.username,
+        imageUrl: payload.data.image_url,
+      },
+    });
+  }
+
+  if(eventType === "user.deleted"){
+    await db.user.delete({
+      where:{
+        externalUserId: payload.data.id,
+      }
+    })
+  }
+
+  
   return new Response("", { status: 200 });
 }
