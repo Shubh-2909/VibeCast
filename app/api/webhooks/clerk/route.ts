@@ -57,6 +57,11 @@ export async function POST(req: Request) {
         externalUserId: payload.data.id,
         username: payload.data.username,
         imageUrl: payload.data.image_url,
+        stream: {
+          create: {
+            name: `${payload.data.username}'s stream`,
+          },
+        },
       },
     });
     console.log(res);
@@ -84,14 +89,13 @@ export async function POST(req: Request) {
     });
   }
 
-  if(eventType === "user.deleted"){
+  if (eventType === "user.deleted") {
     await db.user.delete({
-      where:{
+      where: {
         externalUserId: payload.data.id,
-      }
-    })
+      },
+    });
   }
 
-  
   return new Response("", { status: 200 });
 }
